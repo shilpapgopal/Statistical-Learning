@@ -1,0 +1,444 @@
+---
+title: "Statistical Learning Assignment 2"
+author: "Shilpa Gopalakrishna"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+## Predicting Heart attack
+
+***
+
+Read data from excel and save it in dataframe
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(ggplot2)
+library(psych)
+library(ISLR)
+library(dplyr)
+library(moments)
+library(dlookr)
+library(ggpubr)
+library(broom)
+library(dvmisc)
+library(modelsummary)
+library(survey) 
+library(caret)
+library(reshape2)
+library(dvmisc)
+library(rpart)
+library(rpart.plot)
+library("ROCR")
+library(corrplot)
+library(RColorBrewer)
+```
+
+
+```{r eval=TRUE}
+df <- read.csv("C:\\Users\\shilp\\Desktop\\stats HW2\\heart_attack.csv")
+df_orig <-df
+```
+
+***
+
+**About the dataset**
+
+The dataset contains 7 attributes, out of which 6 being independent attribute and 1 dependent or target attribute.
+
+* age - Age of the person
+* cp  - Chest pain level
+* trtbps - Resting blood pressure (in nmHg)
+* chol   - Cholesterol in mg/di fetched via BMI sensor
+* thalachh -  Maximum hear rate achieved
+* oldpeak - previous peak
+
+The target variable is called Hattack, and contains value "1" if the person suffered a heart attack else contains a value "0" if the person did not have heart attack.
+
+***
+
+**Data analysis**
+
+Data types of the dataset
+
+```{r eval=TRUE}
+str(df)
+```
+
+Correlation of features in the dataset
+
+```{r eval=TRUE}
+cor(df)
+```
+
+Convert the dependent column from numeric to factor datatype
+
+```{r eval=TRUE}
+df$Hattack <- factor(df$Hattack)
+```
+
+Describe the dataset
+
+```{r eval=TRUE}
+describe(df)
+```
+
+***
+
+### Question 1
+
+#### **Sub question 1.(a)** 	Fit a logistic regression model for the outputs using all of the available inputs. Explain your model and report your results. Identify the direction and magnitude of each effect from the fitted coefficients. Comment on your findings.
+
+__Solution:__
+
+__Model Building__
+
+Logistic regression is a statistical model that uses a logistic function to model a binary dependent variable. In the dataset provided, we have 6 independent numeric variables and 1 dependent variable which is "Hattack" indicator column that can take the value 0 or 1. 
+
+##### **_mdl_lr_**
+
+mdl_lr is built using all the 6 independent variables(age+cp+trtbps+chol+thalachh+oldpeak) as input features and dependent variable as "Hattack" indicator column. Our logistic model has to be trained on 303 records in the dataset which can later predict the heart attack provided the independent variables.
+
+The glm function takes the family parameter as "binomial" to model logistic regression scenarios.
+
+__Interpretation of Model mdl_lr results__
+
+* **Direction:** The coefficients for age, trtbps, chol and oldpeak is negative which means they have negative correlation with the dependent variable. The coefficients of “cp” and “thalachh” is positive which means they have a positive correlation with the dependent variable.
+
+* **Magnitude:** The coefficients with largest weights are cp, oldpeak and thalachh (irrespective of positive or negative sign) with 0.92, -0.82 and 0.02 respectively. These variables(features) contribute the most in the logistic regression model. This is called as feature importance of the input variables. Hence, we can also see that these variables have the p-value close to zero and the coefficients are significant. 
+
+* The **AIC** value is 295.17. Later in the tasks, we can compare the AIC of models created with different feature and determine if the AIC of 295.17 is best or if there are other combinations which gives us the least AIC for the model.
+
+The summary output of the model is shown below.
+
+```{r eval=TRUE}
+mdl_lr = glm(formula = Hattack~age+cp+trtbps+chol+thalachh+oldpeak, family = binomial, data = df)
+summary(mdl_lr)
+
+```
+
+***
+
+#### **Sub question 1.(b)** Present the value of each coefficient estimate with a 95% confidence interval. Which inputs would you say have strong effects? Order the inputs in terms of decreasing effect. Comment on your findings and justify your reasoning.
+
+**Solution:**
+
+**Confidence Interval:**
+To calculate the confidence interval for the estimates at 5% Significance level, we get the function qnorm to find the critical value. The value is 1.96 at 5% Significance level. Using the critical value,we calculate the Confidence interval. The below expression gives us the confidence interval at both the ends. 
+CI = estimate_value (+or-) zc*std_error_value
+
+Below is the confidence interval for each of the coefficient estimate with 95% confidence Interval:
+
+* age: -0.046 , 0.026
+* cp: 0.617 , 1.229
+* trtbps: -0.035 , 0.0015
+* chol: -0.0074 , 0.00417
+* thalachh: 0.0096 , 0.04
+* oldpeak: -1.14 , -0.501
+
+```{r eval=TRUE}
+#Get critical value of z_2.5% (should be 1.96)
+zc = qnorm(0.975)
+# Conf Interval - age 
+#Extract estimate and standard error of coeff. from model summary 
+estimate_age = summary(mdl_lr)$coefficients[2,1]
+std_error_age = summary(mdl_lr)$coefficients[2,2]
+ci_low_age = estimate_age - zc*std_error_age
+ci_high_age = estimate_age + zc*std_error_age
+#Conf Interval - cp
+estimate_cp = summary(mdl_lr)$coefficients[3,1]
+std_error_cp = summary(mdl_lr)$coefficients[3,2]
+ci_low_cp = estimate_cp - zc*std_error_cp
+ci_high_cp = estimate_cp + zc*std_error_cp
+#Conf Interval - trtbps      
+estimate_trtbps = summary(mdl_lr)$coefficients[4,1]
+std_error_trtbps = summary(mdl_lr)$coefficients[4,2]
+ci_low_trtbps = estimate_trtbps - zc*std_error_trtbps
+ci_high_trtbps = estimate_trtbps + zc*std_error_trtbps
+#Conf Interval - chol 
+estimate_chol = summary(mdl_lr)$coefficients[5,1]
+std_error_chol = summary(mdl_lr)$coefficients[5,2]
+ci_low_chol = estimate_chol - zc*std_error_chol
+ci_high_chol = estimate_chol + zc*std_error_chol
+#Conf Interval - thalachh 
+estimate_thalachh = summary(mdl_lr)$coefficients[6,1]
+std_error_thalachh = summary(mdl_lr)$coefficients[6,2]
+ci_low_thalachh = estimate_thalachh - zc*std_error_thalachh
+ci_high_thalachh = estimate_thalachh + zc*std_error_thalachh
+#Conf Interval - oldpeak      
+estimate_oldpeak = summary(mdl_lr)$coefficients[7,1]
+std_error_oldpeak = summary(mdl_lr)$coefficients[7,2]
+ci_low_oldpeak =  estimate_oldpeak - zc*std_error_oldpeak
+ci_high_oldpeak = estimate_oldpeak + zc*std_error_oldpeak
+
+#Calculate and print the lower and upper boundaries of the confidence interval
+cat("age Conf. Interval:    ", ci_low_age,",",  ci_high_age, "\n","cp Conf. Interval:     " ,ci_low_cp,",", ci_high_cp, "\n" ,"trtbps Conf. Interval: " ,ci_low_trtbps,",", ci_high_trtbps, "\n", "chol Conf. Interval:   " ,ci_low_chol,",",  ci_high_chol, "\n","thalachh Conf. Interval: " , ci_low_thalachh,",",  ci_high_thalachh, "\n", "oldpeak Conf. Interval: " , ci_low_oldpeak,",",  ci_high_oldpeak)
+
+```
+
+**What does the Confidence Interval tell us?**
+The CI for top 3 highest coeffcients are below. It can be seen that the first 2 CI does not include zero, which means that the coefficients can never be 0 and hence are significant.
+The CI for trtbps includes 0, but the interval is so small and can be interpreted like there is very less change of coefficient being in the interval. Hence, trtbps is also significant coefficient.
+
+* CP: 0.6175268 , 1.22929 
+* oldpeak: -1.145381 , -0.5017416
+* trtbps: -0.03501046 , 0.001508533
+
+
+**Inputs with strong effect:**
+
+The top 3 largest coefficients(ignoring the sign) are for features cp, oldpeak and thalachh with weight with 0.92, -0.82 and 0.02 respectively. Hence, the input values for cp, oldpeak and thalachh when multiplied by the coefficients contribute largest in determining the heart attack variable. 
+
+**Order of inputs in terms of decreasing effect **
+
+When we sort the feature coefficients using sort function in decreasing order of effect, we get the below order of coefficients in terms of weight.
+
+* cp	0.923408
+* oldpeak	0.823561
+* thalachh	0.025266
+* trtbps	0.016751
+* age	0.010199
+* chol	0.00163
+
+```{r eval=TRUE}
+sort(abs(mdl_lr$coefficients),decreasing = T)
+```
+
+If we see the correlation plot, the target variable "Heart attack" has higheset correlation(relatively highest) of 0.43 with cp and -0.43 with oldpeak and 0.42 with thalachh. This correlation is reflected in the coefficients. We have the highest coefficient for cp(0.92),oldpeak(0.82) and thalachh(0.025)
+
+```{r eval=TRUE}
+M <-cor(df_orig)
+corrplot(M, method = 'number')
+```
+***
+
+#### **Sub question 1.(c)** 	Using aic, perform model selection to determine which factors are useful to predict the result of the heart attack. Use a ‘greedy’ input selection procedure, as follows: (i) select the best model with 1 input; (ii) fixing that input, select the best two-input model (i.e. try all the other 5 inputs with the one you selected first); (iii) select the best three-input model containing the first two inputs you chose, etc. At each stage evaluate the quality of fit using aic and stop if this gets worse. Report your results and comment on your findings. Are your findings consistent with the Task 1.(b)?
+
+**Solution:**
+
+Greedy input selection procedure is a feature selection method. It is a simple and takes low run time in small feature space. The idea behind this approach is that we start with a single feature and iteratively the optimal additional feature with respect to a performance measure is added to the feature set.  In our dataset, we use Akaike Information Criterion (AIC) as the performance measure to select a set of features.
+
+**First iteration:** We build multiple models each using only 1 variable and then compare the AIC for the model built using only 1 variable. In this iteration, we see that the mdl7 with "oldpeak" feature has the lowest AIC, so we retain this model and add further features to this in 2nd iteration.
+
+```{r eval=TRUE}
+mdl2 = glm(formula = Hattack	~age, family = binomial, data = df)
+mdl3 = glm(formula = Hattack	~cp, family = binomial, data = df)
+mdl4 = glm(formula = Hattack	~trtbps, family = binomial, data = df)
+mdl5 = glm(formula = Hattack	~chol, family = binomial, data = df)
+mdl6 = glm(formula = Hattack	~thalachh, family = binomial, data = df)
+mdl7 = glm(formula = Hattack	~oldpeak, family = binomial, data = df)
+
+cat("mdl2 AIC: " ,mdl2$aic, "\n", "mdl3 AIC: " ,mdl3$aic, "\n", "mdl4 AIC: " ,mdl4$aic, "\n", "mdl5 AIC: " ,mdl5$aic, "\n", "mdl6 AIC: " ,mdl6$aic, "\n", "mdl7 AIC: ", mdl7$aic) 
+#Best model = mdl7=359
+```
+
+**Second iteration:** Here, we add additional 1 feature to model7 and build multiple models and measure the AIC. We see that the model9 has the lowest AIC. So, in 3rd iteration, we enhance model9.
+
+```{r eval=TRUE}
+mdl8 = glm(formula = Hattack	~oldpeak+age, family = binomial, data = df)
+mdl9 = glm(formula = Hattack	~oldpeak+cp, family = binomial, data = df)
+mdl10 = glm(formula = Hattack	~oldpeak+chol, family = binomial, data = df)
+mdl11 = glm(formula = Hattack	~oldpeak+trtbps, family = binomial, data = df)
+mdl12 = glm(formula = Hattack	~oldpeak+thalachh, family = binomial, data = df)
+
+cat("mdl8 AIC: " ,mdl8$aic, "\n", "mdl9 AIC: " ,mdl9$aic, "\n", "mdl10 AIC: " ,mdl10$aic, "\n", "mdl11 AIC: " ,mdl11$aic, "\n", "mdl12 AIC: " ,mdl12$aic) 
+#Best model = mdl9=306.53
+```
+
+**Third iteration:** On enhancing mdl9 with additional feature, we get mdl16 which has the lowest AIC.
+
+```{r eval=TRUE}
+mdl13 = glm(formula = Hattack	~oldpeak+cp+chol, family = binomial, data = df)
+mdl14 = glm(formula = Hattack	~oldpeak+cp+age, family = binomial, data = df)
+mdl15 = glm(formula = Hattack	~oldpeak+cp+trtbps, family = binomial, data = df)
+mdl16 = glm(formula = Hattack	~oldpeak+cp+thalachh, family = binomial, data = df)
+
+cat("mdl13 AIC: " ,mdl13$aic, "\n", "mdl14 AIC: " ,mdl14$aic, "\n", "mdl15 AIC: " ,mdl15$aic, "\n", "mdl16 AIC: " ,mdl16$aic) 
+#Best mdl = mdl16 = 294.37
+```
+
+**Fourth iteration:** On enhancing mdl16 with additional feature, we get mdl17 which has the lowest AIC.
+
+```{r eval=TRUE}
+mdl17 = glm(formula = Hattack	~oldpeak+cp+thalachh+trtbps, family = binomial, data = df)
+mdl18 = glm(formula = Hattack	~oldpeak+cp+thalachh+age, family = binomial, data = df)
+mdl19 = glm(formula = Hattack	~oldpeak+cp+thalachh+chol, family = binomial, data = df)
+
+cat("mdl17 AIC: " ,mdl17$aic, "\n", "mdl18 AIC: " ,mdl18$aic, "\n", "mdl19 AIC: " ,mdl19$aic) 
+#Best mdl = mdl17 = 291.94
+```
+
+**Fifth iteration:** On enhancing mdl17 with additional feature, we get 2 models mdl20 and mdl21 that have same AIC of 293.47. The AIC in previous iteration was 291.94. By adding additional feature in 5th iteration, the AIC value increased which means that the previous model was the better fit and by adding any additioanl feature, the performance of the model is getting reduced. Hence, we can consider model17 as the best fit model with the features oldpeak+cp+thalachh+trtbps.
+
+```{r eval=TRUE}
+mdl20 = glm(formula = Hattack	~oldpeak+cp+thalachh+trtbps+age, family = binomial, data = df)
+mdl21 = glm(formula = Hattack	~oldpeak+cp+thalachh+trtbps+chol, family = binomial, data = df)
+
+cat("mdl20 AIC: " ,mdl20$aic, "\n", "mdl21 AIC: " ,mdl21$aic) 
+# AIC of both the models is higher than the previous iteration models
+```
+
+**Conclusion: **
+
+By considering AIC as a performance measure, using greedy search we can conclude that model17 is the best fit model with the features oldpeak+cp+thalachh+trtbps.
+
+In task 1.b, we selected the top 4 features with maximum weight as the feature that contributed highest to describe the target variable "HeartAttk". The top 4 features from 1.b are - cp	0.923408, oldpeak	0.823561, thalachh	0.025266, trtbps	0.016751. The featured selected in 1.b are consistent with the features selected by greedy search procedure.
+
+***
+
+### Question 2 
+
+#### **Sub question 2.1**	Use the rpart package to create a decision tree classification model. Explain and visualise your model and interpret the fitted model.
+
+
+**Solution:**
+
+__Interpretation of rpart code:__
+
+**rpart function** is a library in R that is used for building classification and regression trees models that implements recursive partitioning to create decision tree. To model heartattack data, we have used below parameters:
+
+* method= class, which indicated that the target variables is categorical
+* control parameter controls aspects of the rpart fit. Cp complexity parameter helps save computing time by pruning off splits that are not good to construct.  Split that does not decrease the overall lack of fit by a factor of cp is not attempted.  Lower cp value means bigger the tree. For complex problems, the fitting algorithm stops before the terminal node is totally pure to prevent overfitting.
+
+**Summary**  
+The model considered the below variables for building the decision tree and is given by dt_mdl$variable and displays in descending order
+ cp    oldpeak  thalachh     age      chol    trtbps 
+45.33   25.82     22.92     15.15     10.19    4.46
+
+"son" indicates the number of the next node below that split. The "obs" numbers are how many of the training data are on each side.
+
+dt_mdl$splits expression displays the split count at each node and the gini impurity at the node.
+
+**Code:**
+
+Decision tree model using rpart and summary
+```{r eval=TRUE}
+dt_mdl <- rpart(Hattack~., data = df, method = 'class', control=rpart.control(cp = 0.01))
+#summary(dt_mdl)
+```
+
+Splits and gini impurity value during building decision tree 
+```{r eval=TRUE}
+dt_mdl$splits
+```
+
+**Decision tree plot:** Once the model is built, the decision tree is visualized via R function prp.
+Extra=6 parameter prints the probability of the class in the tree, cex is the font size in the decision tree plot.
+
+The decision tree is built during modeling considering the best split in terms of lowest Gini impurity at each node, and maximum information gain.
+
+Decision tree created during the model generation.
+```{r eval=TRUE}
+prp(dt_mdl, extra=6, xpd=TRUE, cex=0.8)
+```
+
+**Printcp** prints the complexity parameter value used while creating the decision tree. 
+Complexity parameter values for the decision model
+```{r eval=TRUE}
+printcp(dt_mdl)
+```
+
+**Plotcp** plots the cp value vs relative error vs tree size
+Plot of complexity parameter values
+```{r eval=TRUE}
+plotcp(dt_mdl)
+```
+
+Do prediction on training data & print the confusion matrix & accuracy
+```{r eval=TRUE}
+p<- predict(dt_mdl, df[, 2:7], type = "class")
+cm_dt<-confusionMatrix(p,  df$Hattack, positive="1")
+cm_dt
+```
+
+***
+
+### Question 3 
+
+#### **Sub question 3.1**	Compare your decision tree model and your logistic regression model. Do they attribute high importance to the same factors? Interpret each model to explain the heart attack occurrence.
+
+**Solution:**
+
+Comparison of 2 models can be done from various aspects. 
+
+ **(1) General difference** Decision trees are relatively simpler to interpret than Logistic regression. Decision trees have more hyper parameters to tune the model and the tree can be tuned and pruned based on the complexity of the data. Logistic regression has relatively less hyper parameters and limited control on tuning. 
+
+Below we compare the models based on feature importance selection & ROC.
+
+ **(2) Feature Importance**  It can be seen from below that the first 3 highest weighed features (cp, oldpeak, thalachh) are same in both the models. The importance of last 3 least weight features(trtbps, age, chol) varies a bit. As the weight of first 3 features are relatively at higher end as compared to lowest 3 features, both are models agree with each other.
+
+(i) Feature Importance - Logistic Regression
+
+ cp	   oldpeak  thalachh  trtbps     age       chol
+0.92  	0.82     0.02    0.0167    0.0101   	0.0016
+
+(ii) Feature Importance - Decision Tree
+
+ cp    oldpeak  thalachh     age      chol    trtbps 
+45.33   25.82     22.92     15.15     10.19    4.46
+
+ **(3) Accuracy on train set**
+
+The Decision tree has a slightly better accuracy than Logistic regression.
+
+* Accuracy of Logistic Regression: 0.785
+* Accuracy of Decision Tree: 0.8449 (Code in task 2) 
+
+```{r eval=TRUE}
+p_lr1<- predict(mdl_lr, df[, 2:7], type = "response")
+p22 <- ifelse(p_lr1 > 0.5, "1", "0")
+mean(p22 == df$Hattack)
+```
+
+ **(4) ROC curve** shows the performance of one classification model at all classification thresholds. It can be used to evaluate the strength of a model and to compare two models. It is a plot of True Positive Rate vs False Positive Rate.
+Both the models almost have similar ROC curve. Area under the curve for Decision tree is a bit higher than that of Logistic regression.
+
+(i) ROC - Logistic Regression
+```{r eval=TRUE}
+pred_lr = predict(mdl_lr, newdata = df[, 2:7], type = "response") 
+Pred2_lr = prediction(pred_lr, df$Hattack) 
+plot(performance(Pred2_lr, "tpr", "fpr"))
+abline(0, 1, lty = 2)
+```
+
+(ii) ROC - Decision Tree
+```{r eval=TRUE}
+pred = predict(dt_mdl, newdata = df[, 2:7], type = "prob")[,2] 
+Pred2 = prediction(pred, df$Hattack) 
+plot(performance(Pred2, "tpr", "fpr"))
+abline(0, 1, lty = 2)
+```
+
+***
+
+### Question 4
+
+#### **Sub question 4.1**	Which model would you use if you were explaining the heart attack data to an audience, and why?
+
+**Solution:**
+
+Decision trees are relatively simpler to interpret than Logistic regression. The visual decision tree plot clearly shows the features selected while splitting the decision tree with probabilities. The flexibility to tune a decision trees in terms of split and pruning a tree is higher and provides more handle on the way tree is built.
+
+So, in this particular example, I would use Decision tree to explain the heart failure model to audience.
+
+First i would start with the dataset analysis and then build the model and interpret the decision tree. The decision tree is first split based on feature "cp". If "cp" value is <1, then next the decision tree consideres "oldpeak" value and if it is >=0.7, then the class is determined as 0. If the value of "oldpeak" is <0.7, then again the next split is done based on "oldpeak" <0.25. This way the split continues considering various performance parameters like gini impurity and cp parameter to control model complexity(still other hyper parameters)
+
+Finally, the summary of the model shows how each split in the tree was made, feature importance and predict & accuracy, ROC curve.
+
+```{r eval=TRUE}
+prp(dt_mdl, extra=6, xpd=TRUE, cex=0.8)
+```
+
+
+***
+
+
+
+
+
+
+

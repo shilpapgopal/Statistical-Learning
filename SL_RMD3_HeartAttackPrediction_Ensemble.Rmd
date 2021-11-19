@@ -1,0 +1,858 @@
+---
+title: "Statistical Learning Assignment 3"
+author: "Shilpa Gopalakrishna"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+## Predicting Heart attack using Random Forest algorithm
+
+***
+
+Read data from excel and save it in dataframe
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(psych)
+library(dplyr)
+library(dlookr)
+library(dvmisc)
+library(modelsummary)
+library(survey) 
+library(caret)
+library(randomForest)
+library("ROCR")
+library(pROC)
+library(corrplot)
+```
+
+
+```{r eval=TRUE}
+df <- read.csv("C:\\Users\\shilp\\OneDrive\\MS_2021\\S2\\Stats Learning\\HW3\\human-heart.csv")
+df_orig <-df
+```
+
+***
+
+**About the dataset**
+
+The dataset contains 10 attributes, out of which 9 being independent attribute and 1 dependent or target attribute.
+
+* age - person’s age in years
+* sex - person’s sex (1 = male, 0 = female)
+* cp  - chest pain experienced 
+Possible values: 1 = typical angina, 2 = atypical angina, 3 = non-anginal pain, 4 = asymptomatic
+* trestbps - The person’s resting blood pressure (mm Hg on admission to the hospital)
+* chol - person’s cholesterol measurement in mg/dl
+* fbs  - person’s fasting blood sugar (> 120 mg/dl, 1 = true, 0 = false)
+* restecg - Resting electrocardiographic measurement 
+Possible values: 0 = normal, 1 = having ST-T wave abnormality,2 = showing probable or definite left ventricular hypertrophy by Estes’ criteria)
+* ca     - The number of major vessels (0-3)
+* thal   - A blood disorder called thalassemia (3 = normal, 6 = fixed defect, 7 = reversable defect)
+* target - Heart disease (0 = no, 1 = yes)
+
+The target variable is called "target", and contains value "1" if the person suffered a heart attack else contains a value "0" if the person did not have heart attack.
+
+***
+
+**Data analysis**
+
+Data types of the dataset
+
+```{r eval=TRUE}
+str(df)
+```
+
+Correlation of features in the dataset.
+Positive correlation can be observed between target and cp and negative correlation between target and ca/thal/sex and age.
+
+```{r eval=TRUE}
+cor(df)
+cor(df_orig$target, df_orig$cp) # Positive correlation
+cor(df_orig$target, df_orig$ca)   # Negative correlation
+cor(df_orig$target, df_orig$thal) # Negative correlation
+cor(df_orig$target, df_orig$sex)  # Negative correlation
+cor(df_orig$target, df_orig$age)  # Negative correlation
+```
+
+Convert the dependent column from numeric to factor datatype
+
+```{r eval=TRUE}
+df$target <- factor(df$target)
+```
+
+Describe the dataset
+
+```{r eval=TRUE}
+describe(df)
+```
+
+***
+
+### Question 1
+
+#### Fit Random Forest models using each possible input on its own to predict Hear disease. Evaluate the quality of fit by using the predict function to calculate the predicted class for each target (heart disease or no heart disease) (hint, you need type=’response’). Which input fits best? (i.e. which classifies the most ’targets’ correctly?)
+
+__Solution:__
+
+__Model Building using Random forest__
+
+Random forest is an ensemble of decision tree algorithms. It is an extension of bagging of decision trees and is used for classification and regression problems. The predictions of mutliple decision trees are averaged and the combined estimator helps in reducing the variance.
+
+In the dataset provided, we aim to predict the target variable, if a person suffers heart attack or not using the independent variables.
+
+We build 9 random forest model using each of the 9 independent variable, one at a time. 
+
+__Interpretation of Model results__
+
+Split the dataset into train and test with ration 70:30. The proportion of class in train and test should be same.We use train set to train the random forest model and testset to evaluate the goodness of fit. 
+
+```{r eval=TRUE}
+set.seed(101)
+train.index <- createDataPartition(df$target, p = .7, list = FALSE)
+train_data <- df[ train.index,]
+test_data  <- df[-train.index,]
+
+#Proportion of Class in train and test sample
+prop.table(table(train_data$target))
+prop.table(table(test_data$target))
+```
+
+Train the model using randomForest method using individual variables.
+
+Few important parameters that the Random Forest model takes for model building are below:
+
+* target+feature variable combination and the dataframe name. 
+* importance=TRUE -> If set to TRUE, then the importance of predictors are assessed. The output model reutrns the class wise feature importance.
+* ntree -> Number of treees to build.
+
+Here, we use accuracy as the evaluation metric to select a model as best fit. Accuracy is the fraction of predictions our model predicted correct.
+
+* Accuracy = Num of correct predictions / Total number of predictions
+* Accuracy = (TruePositive+TrueNegative) / (TruePositive+TrueNegative+FalsePositive+FalseNegative)
+
+The accuracy of each model is briefed below:
+
+* age  = 61%
+* sex  = 63%
+* cp   = 81%
+* trestbps = 55%
+* chol = 60%
+* fbs  = 54%
+* restecg  = 58%
+* ca   = 76%
+* thal = 75%
+
+**The highest accuracy is by individual feature model, feature "cp" with accuracy of 81%**
+
+* Train variable - age
+```{r eval=TRUE}
+fit_age <- randomForest(target	~age, data = train_data)
+#summary(fit_age)
+#print(fit_age)
+p<- randomForest:::predict.randomForest(fit_age, test_data[1], type = "response")
+cm_age<-confusionMatrix(p,  test_data$target, positive="1")
+cm_age$overall['Accuracy'] 
+```
+
+* Train variable - sex
+```{r eval=TRUE}
+fit_sex <- randomForest(target~sex, data = train_data)
+p<- randomForest:::predict.randomForest(fit_sex, test_data[ 2], type = "response")
+cm_sex<-confusionMatrix(p,  test_data$target, positive="1")
+cm_sex$overall['Accuracy'] 
+```
+
+* Train variable - cp
+```{r eval=TRUE}
+fit_cp <- randomForest(target	~cp, data = train_data)
+p<- randomForest:::predict.randomForest(fit_cp, test_data[ 3], type = "response")
+cm_cp<-confusionMatrix(p,  test_data$target, positive="1")
+cm_cp$overall['Accuracy']  
+```
+
+* Train variable - trestbps
+```{r eval=TRUE}
+fit_trestbps <- randomForest(target	~trestbps, data = train_data)
+p<- randomForest:::predict.randomForest(fit_trestbps, test_data[ 4], type = "response")
+cm_trestbps<-confusionMatrix(p,  test_data$target, positive="1")
+cm_trestbps$overall['Accuracy']  
+```
+
+* Train variable - chol
+```{r eval=TRUE}
+fit_chol <- randomForest(target	~chol, data = train_data)
+p<- randomForest:::predict.randomForest(fit_chol, test_data[ 5], type = "response")
+cm_chol<-confusionMatrix(p,  test_data$target, positive="1")
+cm_chol$overall['Accuracy']  
+```
+
+* Train variable - fbs
+```{r eval=TRUE}
+fit_fbs <- randomForest(target	~fbs, data = train_data)
+p<- randomForest:::predict.randomForest(fit_fbs, test_data[6], type = "response")
+cm_fbs<-confusionMatrix(p,  test_data$target, positive="1")
+cm_fbs$overall['Accuracy']  
+```
+
+* Train variable - restecg
+```{r eval=TRUE}
+fit_restecg <- randomForest(target	~restecg, data = train_data)
+p<- randomForest:::predict.randomForest(fit_restecg, test_data[7], type = "response")
+cm_restecg<-confusionMatrix(p,  test_data$target, positive="1")
+cm_restecg$overall['Accuracy']  
+```
+
+* Train variable - ca
+```{r eval=TRUE}
+fit_ca <- randomForest(target	~ca, data = train_data)
+p<- randomForest:::predict.randomForest(fit_ca, test_data[8], type = "response")
+cm_ca<-confusionMatrix(p,  test_data$target, positive="1")
+cm_ca$overall['Accuracy']  
+```
+
+* Train variable - thal
+```{r eval=TRUE}
+fit_thal <- randomForest(target	~thal, data = train_data)
+p<- randomForest:::predict.randomForest(fit_thal, test_data[9], type = "response")
+cm_thal<-confusionMatrix(p,  test_data$target, positive="1")
+cm_thal$overall['Accuracy'] 
+```
+
+**Conclusion: Highest accuracy and Which input fits best?**
+
+Now, we check which model resulted in the highest accuracy. The accuracies are sorted in descending order and the variable that resulted in highest accuracy is printed. 
+
+It can be seen that the independent variable "cp" resulted in the highest accuracy and can be considered as the best fit.
+
+It can also be seen from the correlation plot that the target has comparatively noticable correlation of 43% with the independent variable "cp".
+
+
+```{r eval=TRUE}
+variable <- c('age','sex','cp', 'trestbps','chol','fbs','restecg','ca','thal')
+
+acc_age   <-cm_age$overall['Accuracy']*100
+acc_sex   <-cm_sex$overall['Accuracy']*100
+acc_cp    <-cm_cp$overall['Accuracy']*100
+acc_trestbps <-cm_trestbps$overall['Accuracy']*100
+acc_chol <-cm_chol$overall['Accuracy']*100
+acc_fbs  <-cm_fbs$overall['Accuracy']*100
+acc_restecg <-cm_restecg$overall['Accuracy']*100
+acc_ca   <-cm_ca$overall['Accuracy']*100
+acc_thal <-cm_thal$overall['Accuracy']*100
+
+accuracy <- c(acc_age, acc_sex,acc_cp,acc_trestbps, acc_chol,acc_fbs,acc_restecg,acc_ca,acc_thal)
+acc.data <- data.frame(variable, accuracy)
+
+#Sorted Accuracies of model built using individual features 
+sorted_df <- acc.data[order(-accuracy),]
+sorted_df
+
+cor(df_orig$cp, df_orig$target)
+```
+
+***
+
+### Question 2
+
+#### Using cross-validation, perform a model selection to determine which features are useful for making predictions using a Random Forest. As above, use the number of ’targets’ correctly classified as the criterion for deciding which model is best. You might try to find a way to loop over all possible models (ignore the possibility of no input variables. Hint: you can use allCombs in the dagR package to generate all combinations of the numbers 1 to n). Or select features ‘greedily’, by picking one at a time to add to the model. Present your results in the most convincing way you can.
+
+**Solution:**
+
+**Feature selection approach**
+
+Greedy input selection procedure is a feature selection method. It is a simple and takes low run time in small feature space. The idea behind this approach is that we start with a single feature and iteratively find the optimal additional feature with respect to a performance measure is added to the feature set.  In our dataset, we use Accuracy as the performance measure to select a set of features.
+
+We build multiple models, we start with 1 variable and compare the Accuracy for the model built using only 1 variable. We pick the best model with highest accuracy and further in 2nd iteration add additional feature to feature selected in 1st model. We repeat the process for 9 variables in the order of variable that leads to highest accuracy. 
+
+**Model selection approach**
+
+Cross validation approach is applied to overcome the issue of overfitting. Instead of training the model on train set once and test the model, in Cross validation, we train and test the model with different random sample each time in multiple iterations and check which model wins maximum number of times.
+In our scneario, below steps are applied.
+
+1. Iterate 100 times over all individual variable combinations. 
+
+2. Train and test data combination is generated. Each time the combination of data is randomly varied with "createDataPartition". 
+
+3. In each main loop, each variable combination is modelled using random forest using train data & evaluated using test data. The "formulas" list has all combination of features for 1 to 9 variables.
+
+4. Accuracy of each model in that iteration is added to a list and max accuracy and the corresponding model is added to the list.
+
+5. After 100 iterations, we plot a histogram of the count of times each model won.A model is considered winner in each iteration based on the highest accuracy.
+
+**createFolds** (K Folds Cross validation)
+In previous approach, we are manually creating the train and test set multiple times and looping. Alternatively, we can use **createFolds** method the creates "K" folds(as configured) that generates multiple random samples that can be used for modelling.One example of createFolds is shown at the end.
+
+**trainControl**
+This is another way of creating create multiple train & test set and also applied "Grid search" for parameter selection. In our scenario, we do not use this because, we want to perform parameter(feature) selection using Greedy search so that we can plot histogram. Ideally, this is the best approach that handles both Cross validation and performs feature selection.
+
+Below, each model incrementally updated with additional feature is shown.
+
+**First iteration of Greedy search - 1 feature:** 
+
+Highest accuracy by feature - cp
+Average Highest accuracy maximum number of times: ~79%
+
+```{r eval=TRUE}
+set.seed(11)
+formulas = c(target~age,        target~sex,    target ~ cp,
+             target ~ trestbps, target ~ chol, target ~ fbs,
+             target ~ restecg,  target ~ ca,   target ~ thal)
+
+winner = rep(NA, 100)
+winner_acc = rep(NA, 100)
+df_result = data.frame(id = numeric(0), jobs = numeric(0))
+for (iteration in 1:100){
+  # Create train test partition
+  train.index <- createDataPartition(df$target, p = .7, list = FALSE)
+  train_data <- df[ train.index,]
+  test_data  <- df[-train.index,]
+  acc_list = rep(NA, length(formulas))
+  
+  #loop through all feature combinations
+  for (i in 1:length(formulas)){
+     #build model
+     current_model <- randomForest(formula = formulas[[i]], data = train_data)
+     #predict test set
+     p<- randomForest:::predict.randomForest(current_model, test_data, type = "response")
+     #Confusion matrix
+     cmm<-confusionMatrix(p,  test_data$target, positive="1")
+     # calculate accuracy
+     accu<- cmm$overall['Accuracy']*100
+    #add accuracy to list
+     acc_list[i] = accu
+   }
+
+  #Find the winning model in this iteration
+  winner[iteration] = which.max(acc_list)
+  newrow = c(mdl_num=winner[iteration], acc = max(acc_list))
+  mdl_num <- c(winner[iteration])
+  acc <- c(max(acc_list))
+  df_temp<- data.frame(mdl_num, acc)
+  df_result=rbind(df_result,df_temp)
+}
+
+#Print histogram of winning model
+h <- hist(winner,breaks = seq(0,9,1), main="Winner - model with 1 variable")
+text(h$mids,h$counts,labels=h$counts, adj=c(0.5, -0.5))
+
+# Accuracy of each model
+agg = aggregate(df_result,by = list(df_result$mdl_num),FUN = mean)
+df_agg <-agg
+df_cnt <- df_result %>% group_by(mdl_num) %>% summarize(count=n())
+final_agg <- merge( df_agg, df_cnt,by="mdl_num")
+final_agg
+```
+
+**Second iteration of Greedy search - 2 feature:** 
+
+* Previous feature selected - cp
+* Highest accuracy by feature combination - cp+sex
+* Average Highest accuracy maximum number of times: ~76%
+
+```{r eval=TRUE}
+set.seed(22)
+mdl_num <- c()
+acc <- c()
+df_result <- data.frame(mdl_num, acc)
+
+formulas2 = c(target~cp+age,  target~cp+sex,   target ~ cp+trestbps,
+             target ~ cp+chol,target ~ cp+fbs, target ~ cp+restecg,
+             target ~ cp+ca,  target ~ cp+thal)
+
+winner = rep(NA, 100)
+winner_acc = rep(NA, 100)
+df_result = data.frame(id = numeric(0), jobs = numeric(0))
+
+for (iteration in 1:100){
+  train.index <- createDataPartition(df$target, p = .7, list = FALSE)
+  train_data <- df[ train.index,]
+  test_data  <- df[-train.index,]
+  acc_list = rep(NA, length(formulas2))
+  for (i in 1:length(formulas2)){
+    current_model <- randomForest(formula = formulas2[[i]], data = train_data)
+    p<- randomForest:::predict.randomForest(current_model, test_data, type = "response")
+    cm<-confusionMatrix(p,  test_data$target, positive="1")
+    accu<- cm$overall['Accuracy']*100
+    acc_list[i] = accu
+  }
+  
+  #Find the winning model in this iteration
+  winner[iteration] = which.max(acc_list)
+  newrow = c(mdl_num=winner[iteration], acc = max(acc_list))
+  mdl_num <- c(winner[iteration])
+  acc <- c(max(acc_list))
+  df_temp<- data.frame(mdl_num, acc)
+  
+  df_result=rbind(df_result,df_temp)
+}
+h <- hist(winner,breaks = seq(0,8,1), main="Winner - model with 2 variable")
+text(h$mids,h$counts,labels=h$counts, adj=c(0.5, -0.5))
+
+agg = aggregate(df_result,by = list(df_result$mdl_num),FUN = mean)
+df_agg <-agg
+df_cnt <- df_result %>% group_by(mdl_num) %>% summarize(count=n())
+final_agg <- merge( df_agg, df_cnt,by="mdl_num")
+final_agg
+```
+
+**Third iteration of Greedy search - 3 feature:** 
+
+* Previous feature selected - cp+sex
+* Highest accuracy by feature combination - cp+sex+ca
+* Average Highest accuracy maximum number of times: ~78%
+
+```{r eval=TRUE}
+set.seed(33)
+mdl_num <- c()
+acc <- c()
+winner = rep(NA, 100)
+winner_acc = rep(NA, 100)
+df_result <- data.frame(mdl_num, acc)
+formulas2 = c(target~cp+sex+age,       target ~ cp+sex+trestbps,
+              target ~ cp+sex+chol,    target ~ cp+sex+fbs,
+              target ~ cp+sex+restecg, target ~ cp+sex+ca,
+              target ~ cp+sex+thal)
+df_result = data.frame(id = numeric(0), jobs = numeric(0))
+for (iteration in 1:100){
+  train.index <- createDataPartition(df$target, p = .7, list = FALSE)
+  train_data <- df[ train.index,]
+  test_data  <- df[-train.index,]
+  
+  acc_list = rep(NA, length(formulas2))
+  for (i in 1:length(formulas2)){
+    current_model <- randomForest(formula = formulas2[[i]], data = train_data)
+    p<- randomForest:::predict.randomForest(current_model, test_data, type = "response")
+    cm<-confusionMatrix(p,  test_data$target, positive="1")
+    accu<- cm$overall['Accuracy']*100
+    acc_list[i] = accu
+  }
+  
+  #Find the winning model for this iteration
+  winner[iteration] = which.max(acc_list)
+  newrow = c(mdl_num=winner[iteration], acc = max(acc_list))
+  mdl_num <- c(winner[iteration])
+  acc <- c(max(acc_list))
+  df_temp<- data.frame(mdl_num, acc)
+  
+  df_result=rbind(df_result,df_temp)
+}
+h <- hist(winner,breaks = seq(0,7,1), main="Winner - model with 3 variable")
+text(h$mids,h$counts,labels=h$counts, adj=c(0.5, -0.5))
+agg = aggregate(df_result,by = list(df_result$mdl_num),FUN = mean)
+df_agg <-agg
+df_cnt <- df_result %>% group_by(mdl_num) %>% summarize(count=n())
+final_agg <- merge( df_agg, df_cnt,by="mdl_num")
+final_agg
+```
+
+**Fourth iteration of Greedy search - 4 feature:** 
+
+* Previous feature selected - cp+sex+ca
+* Highest accuracy by feature combination - cp+sex+ca+thal
+* Average Highest accuracy maximum number of times: ~82.3%
+
+```{r eval=TRUE}
+set.seed(44)
+mdl_num <- c()
+acc <- c()
+df_result <- data.frame(mdl_num, acc)
+winner = rep(NA, 100)
+winner_acc = rep(NA, 100)
+formulas2 = c(target~cp+sex+ca+age,       target ~ cp+sex+ca+trestbps,
+              target ~ cp+sex+ca+chol,    target ~ cp+sex+ca+fbs,
+              target ~ cp+sex+ca+restecg, target ~ cp+sex+ca+thal)
+df_result = data.frame(id = numeric(0), jobs = numeric(0))
+for (iteration in 1:100){
+  train.index <- createDataPartition(df$target, p = .7, list = FALSE)
+  train_data <- df[ train.index,]
+  test_data  <- df[-train.index,]
+  acc_list = rep(NA, length(formulas2))
+  for (i in 1:length(formulas2)){
+    current_model <- randomForest(formula = formulas2[[i]], data = train_data)
+    p<- randomForest:::predict.randomForest(current_model, test_data, type = "response")
+    cmm<-confusionMatrix(p,  test_data$target, positive="1")
+    accu<- cmm$overall['Accuracy']*100
+    acc_list[i] = accu
+  }
+  #Find the winning model for this iteration
+  winner[iteration] = which.max(acc_list)
+  newrow = c(mdl_num=winner[iteration], acc = max(acc_list))
+  mdl_num <- c(winner[iteration])
+  acc <- c(max(acc_list))
+  df_temp<- data.frame(mdl_num, acc)
+  df_result=rbind(df_result,df_temp)
+}
+h <- hist(winner,breaks = seq(0,6,1), main="Winner - model with 4 variable")
+text(h$mids,h$counts,labels=h$counts, adj=c(0.5, -0.5))
+agg = aggregate(df_result,by = list(df_result$mdl_num),FUN = mean)
+df_agg <-agg
+df_cnt <- df_result %>% group_by(mdl_num) %>% summarize(count=n())
+final_agg <- merge( df_agg, df_cnt,by="mdl_num")
+final_agg
+```
+
+**Fifth iteration of Greedy search - 5 feature:**
+
+* Previous feature selected - cp+sex+ca+thal
+* Highest accuracy by feature combination - cp+sex+ca+thal+age
+* Average Highest accuracy maximum number of times: ~83.6%
+
+```{r eval=TRUE}
+set.seed(55)
+mdl_num <- c()
+acc <- c()
+winner = rep(NA, 100)
+winner_acc = rep(NA, 100)
+df_result <- data.frame(mdl_num, acc)
+formulas2 = c(target~cp+sex+ca+thal+age,    target ~ cp+sex+ca+thal+trestbps,
+              target ~ cp+sex+ca+thal+chol, target ~ cp+sex+ca+thal+fbs,
+              target ~ cp+sex+ca+thal+restecg)
+df_result = data.frame(id = numeric(0), jobs = numeric(0))
+for (iteration in 1:100){
+  train.index <- createDataPartition(df$target, p = .7, list = FALSE)
+  train_data <- df[ train.index,]
+  test_data  <- df[-train.index,]
+  acc_list = rep(NA, length(formulas2))
+  for (i in 1:length(formulas2)){
+    current_model <- randomForest(formula = formulas2[[i]], data = train_data)
+    p<- randomForest:::predict.randomForest(current_model, test_data, type = "response")
+    cmm<-confusionMatrix(p,  test_data$target, positive="1")
+    accu<- cmm$overall['Accuracy']*100
+    acc_list[i] = accu
+  }
+  #Find the winning model for this iteration
+  winner[iteration] = which.max(acc_list)
+  newrow = c(mdl_num=winner[iteration], acc = max(acc_list))
+  mdl_num <- c(winner[iteration])
+  acc <- c(max(acc_list))
+  df_temp<- data.frame(mdl_num, acc)
+  df_result=rbind(df_result,df_temp)
+}
+h <- hist(winner,breaks = seq(0,5,1), main="Winner - model with 5 variable")
+text(h$mids,h$counts,labels=h$counts, adj=c(0.5, -0.5))
+agg = aggregate(df_result, by = list(df_result$mdl_num),FUN = mean)
+df_agg <-agg
+df_cnt <- df_result %>% group_by(mdl_num) %>% summarize(count=n())
+final_agg <- merge( df_agg, df_cnt,by="mdl_num")
+final_agg
+```
+
+**Sixth iteration of Greedy search - 6 feature:** 
+
+* Previous feature selected - cp+sex+ca+thal+age
+* Highest accuracy by feature combination - cp+sex+ca+thal+age+fbs
+* Average Highest accuracy maximum number of times: ~83.74%
+
+```{r eval=TRUE}
+set.seed(666)
+mdl_num <- c()
+acc <- c()
+df_result <- data.frame(mdl_num, acc)
+winner = rep(NA, 100)
+winner_acc = rep(NA, 100)
+formulas2 = c(target ~ cp+sex+ca+thal+age+trestbps,
+              target ~ cp+sex+ca+thal+age+chol,
+              target ~ cp+sex+ca+thal+age+fbs,
+              target ~ cp+sex+ca+thal+age+restecg)
+df_result = data.frame(id = numeric(0), jobs = numeric(0))
+for (iteration in 1:100){
+  train.index <- createDataPartition(df$target, p = .7, list = FALSE)
+  train_data <- df[ train.index,]
+  test_data  <- df[-train.index,]
+  acc_list = rep(NA, length(formulas2))
+  for (i in 1:length(formulas2)){
+    current_model <- randomForest(formula = formulas2[[i]], data = train_data)
+    p<- randomForest:::predict.randomForest(current_model, test_data, type = "response")
+    cm<-confusionMatrix(p,  test_data$target, positive="1")
+    accu<- cm$overall['Accuracy']*100
+    acc_list[i] = accu
+  }
+  #Find the winning model for this iteration
+  winner[iteration] = which.max(acc_list)
+  newrow = c(mdl_num=winner[iteration], acc = max(acc_list))
+  mdl_num <- c(winner[iteration])
+  acc <- c(max(acc_list))
+  df_temp<- data.frame(mdl_num, acc)
+  df_result=rbind(df_result,df_temp)
+}
+h <- hist(winner,breaks = seq(0,4,1), main="Winner - model with 6 variable")
+text(h$mids,h$counts,labels=h$counts, adj=c(0.5, -0.5))
+agg = aggregate(df_result,by = list(df_result$mdl_num),FUN = mean)
+df_agg <-agg
+df_cnt <- df_result %>% group_by(mdl_num) %>% summarize(count=n())
+final_agg <- merge( df_agg, df_cnt,by="mdl_num")
+final_agg
+```
+
+**Seventh iteration of Greedy search - 7 feature:** 
+
+* Previous feature selected - cp+sex+ca+thal+age+fbs
+* Highest accuracy by feature combination - cp+sex+ca+thal+age+fbs+chol
+* Average Highest accuracy maximum number of times: ~83.4%
+
+```{r eval=TRUE}
+set.seed(77)
+mdl_num <- c()
+acc <- c()
+df_result <- data.frame(mdl_num, acc)
+winner = rep(NA, 100)
+winner_acc = rep(NA, 100)
+formulas2 = c(target ~ cp+sex+ca+thal+age+fbs+chol,
+              target ~ cp+sex+ca+thal+age+fbs+trestbps,
+              target ~ cp+sex+ca+thal+age+fbs+restecg)
+df_result = data.frame(id = numeric(0), jobs = numeric(0))
+for (iteration in 1:100){
+  train.index <- createDataPartition(df$target, p = .7, list = FALSE)
+  train_data <- df[ train.index,]
+  test_data  <- df[-train.index,]
+  acc_list = rep(NA, length(formulas2))
+  for (i in 1:length(formulas2)){
+    current_model <- randomForest(formula = formulas2[[i]], data = train_data)
+    p<- randomForest:::predict.randomForest(current_model, test_data, type = "response")
+    cm<-confusionMatrix(p,  test_data$target, positive="1")
+    accu<- cm$overall['Accuracy']*100
+    acc_list[i] = accu
+  }
+  #Find the winning model for this iteration
+  winner[iteration] = which.max(acc_list)
+  newrow = c(mdl_num=winner[iteration], acc = max(acc_list))
+  mdl_num <- c(winner[iteration])
+  acc <- c(max(acc_list))
+  df_temp<- data.frame(mdl_num, acc)
+  df_result=rbind(df_result,df_temp)
+}
+h <- hist(winner,breaks = seq(0,3,1), main="Winner - model with 7 variable")
+text(h$mids,h$counts,labels=h$counts, adj=c(0.5, -0.5))
+
+agg = aggregate(df_result,by = list(df_result$mdl_num),FUN = mean)
+df_agg <-agg
+df_cnt <- df_result %>% group_by(mdl_num) %>% summarize(count=n())
+final_agg <- merge( df_agg, df_cnt,by="mdl_num")
+final_agg
+```
+
+**Eighth iteration of Greedy search - 8 feature:** 
+
+* Previous feature selected - cp+sex+ca+thal+age+fbs+chol
+* Highest accuracy by feature combination - cp+sex+ca+thal+age+fbs+chol+trestbps
+* Average Highest accuracy maximum number of times: ~81.3%
+
+```{r eval=TRUE}
+set.seed(88)
+mdl_num <- c()
+acc <- c()
+df_result <- data.frame(mdl_num, acc)
+winner = rep(NA, 100)
+winner_acc = rep(NA, 100)
+formulas2 = c(
+  target ~ cp+sex+ca+thal+age+trestbps+fbs+chol+trestbps,
+  target ~ cp+sex+ca+thal+age+trestbps+fbs+chol+restecg)
+df_result = data.frame(id = numeric(0), jobs = numeric(0));
+for (iteration in 1:100){
+  train.index <- createDataPartition(df$target, p = .7, list = FALSE)
+  train_data <- df[ train.index,]
+  test_data  <- df[-train.index,]
+  
+  acc_list = rep(NA, length(formulas2))
+  for (i in 1:length(formulas2)){
+    current_model <- randomForest(formula = formulas2[[i]], data = train_data)
+    p<- randomForest:::predict.randomForest(current_model, test_data, type = "response")
+    cm<-confusionMatrix(p,  test_data$target, positive="1")
+    accu<- cm$overall['Accuracy']*100
+    acc_list[i] = accu
+  }
+  #Find the winning model for this iteration
+  winner[iteration] = which.max(acc_list)
+  newrow = c(mdl_num=winner[iteration], acc = max(acc_list))
+  mdl_num <- c(winner[iteration])
+  acc <- c(max(acc_list))
+  df_temp<- data.frame(mdl_num, acc)
+  df_result=rbind(df_result,df_temp)
+}
+h <- hist(winner,breaks = seq(0,2,1), main="Winner - model with 8 variable")
+text(h$mids,h$counts,labels=h$counts, adj=c(0.5, -0.5))
+agg = aggregate(df_result,by = list(df_result$mdl_num),FUN = mean)
+df_agg <-agg
+df_cnt <- df_result %>% group_by(mdl_num) %>% summarize(count=n())
+final_agg <- merge( df_agg, df_cnt,by="mdl_num")
+final_agg
+```
+
+**Ninth iteration of Greedy search - all feature:** 
+
+* Previous feature selected - cp+sex+ca+thal+age+fbs+chol+trestbps
+* Highest accuracy by feature combination - cp+sex+ca+thal+age+fbs+chol+trestbps+restecg
+* Average Highest accuracy maximum number of times: ~ 81.57%
+
+```{r eval=TRUE}
+set.seed(99)
+mdl_num <- c()
+acc <- c()
+df_result <- data.frame(mdl_num, acc)
+
+formulas2 = c(
+  target ~ cp+sex+ca+thal+age+trestbps+fbs+restecg
+)
+
+df_result = data.frame(id = numeric(0), jobs = numeric(0))
+
+for (iteration in 1:100){
+  train.index <- createDataPartition(df$target, p = .7, list = FALSE)
+  train_data <- df[ train.index,]
+  test_data  <- df[-train.index,]
+  
+  acc_list = rep(NA, length(formulas2))
+  for (i in 1:length(formulas2)){
+    current_model <- randomForest(formula = formulas2[[i]], data = train_data)
+    p<- randomForest:::predict.randomForest(current_model, test_data, type = "response")
+    cmm<-confusionMatrix(p,  test_data$target, positive="1")
+    accu<- cmm$overall['Accuracy']*100
+    acc_list[i] = accu
+  }
+  
+  #Find the winning model for this iteration
+  winner[iteration] = which.max(acc_list)
+  newrow = c(mdl_num=winner[iteration], acc = max(acc_list))
+  mdl_num <- c(winner[iteration])
+  acc <- c(max(acc_list))
+  df_temp<- data.frame(mdl_num, acc)
+  df_result=rbind(df_result,df_temp)
+}
+agg = aggregate(df_result,by = list(df_result$mdl_num),FUN = mean)
+df_agg <-agg
+df_cnt <- df_result %>% group_by(mdl_num) %>% summarize(count=n())
+final_agg <- merge( df_agg, df_cnt,by="mdl_num")
+final_agg
+```
+
+**An example of createFolds** on single variable combinations. Same can be applied on multiple combination using Greedy feature selection approach based on accuracy as the selection criteria.
+
+```{r eval=TRUE}
+# Kfolds
+formulas = c(target~age, target~sex,target ~ cp,target ~ trestbps,
+             target ~ chol,target ~ fbs,target ~ restecg,
+             target ~ ca,target ~ thal)
+#Number of folds to be created
+K=10
+winner = rep(NA, K)
+winner_acc = rep(NA, K)
+# Create K folds
+folds <- createFolds(df$target, k = K)
+# Loop through k folds
+for(i in 1:K){
+  accuracy_list<-as.numeric()
+  # Loop through the formulas
+  for (f in 1:length(formulas)){
+  # for each fold, we conduct training and testing
+  fold_test <- df[folds[[i]],]
+  fold_train <- df[-folds[[i]],] 
+
+  fold_model_DT <- randomForest(formula =  formulas[[f]], data=fold_train)
+  fold_predict_class_DT<- randomForest:::predict.randomForest(fold_model_DT, fold_test, type = "response")
+  fold_cm_DT <- confusionMatrix(fold_predict_class_DT, fold_test$target, positive = "1")
+
+  fold_accuracy_DT <- fold_cm_DT$overall['Accuracy']
+  accuracy_list<- append(accuracy_list,fold_accuracy_DT)
+  }
+  winner[i] = which.max(accuracy_list)
+  winner_acc[i] = max(accuracy_list)
+}
+
+# Winner model in each iteration
+winner
+# Winner model accuracy
+winner_acc
+```
+
+**Conclusion: **
+We observed below points in this exercise:
+
+* 1. Fitted a random forest model, Data set was divided into Test & train set (70:30 ratio) and evaluated based on the accuracy
+* 2. Applied Cross Validation to avoid overfitting
+* 3. Applied Greedy selection technique to choose best features iteratively
+* 4. Accuracies:
+     * The highest accuracy of 83.8% was resulted by feature combination "cp+sex+ca+thal+age+fbs"  
+     * All the features resulted in an accuracy of 81.57%
+* 5. Another approach of K fold cross validation using "createFolds" ws shown just for single variable combination
+* 6. "trainControl" approach that performs both Kfold cross validation and feature selection using Grid search was discussed but not implemented because we wanted to do feature using Greedy technique.
+
+
+**Combinations and accuracy:**
+
+* cp = 79%
+* cp+sex = 76%
+* cp+sex+ca = 78%
+* cp+sex+ca+thal = 82.3%
+* cp+sex+ca+thal+age = 83.6%
+* cp+sex+ca+thal+age+fbs = 83.8% (HIGHEST ACCURACY)
+* cp+sex+ca+thal+age+fbs+chol = 83.4%
+* cp+sex+ca+thal+age+fbs+chol+trestbps = 81.3%
+* cp+sex+ca+thal+age+trestbps+fbs+restecg = 81.6% 
+
+***
+
+### Question 3
+
+#### Would you use this classifier if you were diagnosing heart disease? Discuss with reference to factors that you identified as important and the probability of no heart disease.
+
+**Solution:**
+
+Yes, I would recommend to use the classifier as a initial hint to diagnose heart failure, but with an extra precaution on false negatives.
+
+**Important Features**
+
+The feature combination "cp+sex+ca+thal+age+fbs" gives the best accuracy of 83.8%. Any medical related field needs highest accuracy as possible even through it is used as a hint during the initial diagnose phase. 
+
+**Metrics**
+
+We will examine the Confusion matrix of the model that gave the highest accuracy.
+
+
+```{r eval=TRUE}
+set.seed(92)
+mdl <- randomForest(target~cp+sex+ca+thal+age+fbs, data = train_data)
+p<- randomForest:::predict.randomForest(mdl, test_data, type = "response")
+cm<-confusionMatrix(p,  test_data$target, positive="1")
+cm
+```
+
+**Accuracy** - Here we see that the accuracy is ~83% ie out of 90 records, we have 74 right predictions. 
+
+**The false negative** records are 10 out of 90. **Miss rate or False Negative rate** is given by:
+
+* False Negative Rate = Miss Rate = FN / (TP + FN) = 0.18
+
+Which means our model is not able to detect heart failure when it is actually present 18% of the time. For medical applications, it is required to reduce false negative rate.Compared to other models built, this model provided the least false negative rate.
+
+To correctly identify those who do not have the disease is **sensitivity** which is 85% in our case.
+
+To correctly identify people with the disease is **specificity** which is 75% in our scenario.
+
+* sensitivity = TP / (TP + FN)
+* specificity = TN / (TN + FP)
+
+**ROC Curve** The further the ROC curve is from this line, the more predictive the model is. The area under the ROC curve in our case is 88% in our case.
+
+```{r eval=TRUE}
+set.seed("999")
+mdl <- randomForest(target~cp+sex+ca+thal+age+fbs, data = train_data)
+tree.probs=randomForest:::predict.randomForest(mdl,newdata=test_data,type="prob")
+rocCurve.tree <- roc(test_data$target,tree.probs[,2])
+#plot the ROC curve
+plot(rocCurve.tree,col=c(4))
+auc(rocCurve.tree)
+
+```
+***
+
+
+
+
+
+
+

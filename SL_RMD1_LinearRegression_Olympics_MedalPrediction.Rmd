@@ -1,0 +1,449 @@
+---
+title: "Statistical Learning Assignment 1"
+author: "Shilpa Gopalakrishna"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+## Predicting Olyamic Game medals
+
+***
+
+Read data from excel and save it in dataframe
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(ggplot2)
+library(psych)
+library(ISLR)
+library(dplyr)
+library(moments)
+library(dlookr)
+library(ggpubr)
+library(broom)
+library(dvmisc)
+library(modelsummary)
+library(survey) 
+library(caret)
+library(reshape2)
+library(dvmisc)
+```
+
+
+```{r eval=TRUE}
+
+df <- read.csv("C:\\Users\\shilp\\OneDrive\\MS_2021\\S2\\Stats Learning\\HW\\medal_pop_gdp_data_statlearn.csv")
+df2021 <- read.csv("C:\\Users\\shilp\\OneDrive\\MS_2021\\S2\\Stats Learning\\HW\\2021_pop_gdp_staltearn.csv")
+df2008 <-df[,c("GDP", "Population","Medal2008")] 
+df2012 <-df[,c("Country", "GDP", "Population","Medal2012")] 
+df2016 <-df[,c("Country", "GDP", "Population","Medal2016")] 
+
+```
+
+***
+
+### Question 1 - Linear Regression
+
+#### **Sub question 1.1** 	Perform a linear regression to predict the medal count in 2008 and 2016 (in 2 different regressions) from Population & GDP. Explain your model & approach to learn the model parameters. Report your results & comment on your findings.
+
+
+__Solution:__
+
+__Model Building__
+
+Generalized linear model is a generalization of ordinary linear regression to model response variables that have error distribution models other than a normal distribution like Gaussian distribution.
+
+* 2 models are created using glm function. Dataset “medal_pop_gdp_data_statlearn.csv” is used to build the model.
+* 1st model - Model2008 is created using independent variables GDP and Population and dependent variable as Medal2008.
+* 2nd model - Model2016 is created using independent variables GDP and Population and dependent variable as Medal2016.
+
+##### **_Model 2008_**
+
+Model 2008 is built using GDP and Population provided as input features and dependent variable as Medal count column "Medal2008". 
+
+__Interpretation of Model 2008 results__
+
+* Median = -1.702, Median deviance residual is close to zero, this means that our model is not biased in one direction.
+* Intercept = 5.613, the intercept of the formed line by glm is 5.613. P-value of the Intercept is close to 0. Hence the Intercept value is significant. 
+* Coeff of Slope of GDP = 0.0076131. P-value is close to 0. Hence the slope value is significant.
+* Coeff of Slope of Population = 0.0000000084. P-value=0.24, The coeff. of population is not significant.
+* Null deviance = 29595, refers to intercept-only model. This value is too large, hence adding additional features helps. It can be seen that residual deviance is less compared to Null deviance.
+* Residual deviance = 9053, refers to the trained model. Lesser deviance means better model.
+* AIC = 553.72, penalizes the number of parameters. Smaller AIC results in better predictions.
+
+```{r eval=TRUE}
+mdl2008 = glm(df2008$Medal2008~df2008$Population+df2008$GDP, data=df2008)
+summary(mdl2008)
+predicted2008 <- predict(mdl2008, newdata = df, se.fit=TRUE)
+cor(predicted2008$fit, df2008$Medal2008)
+```
+
+#### **_Model 2016_**
+
+Model 2016 is built using GDP and Population provided as input features and dependent variable as Medal count column "Medal2016". 
+
+__Interpretation of Model 2016 results__
+
+* Median = -2.679, Median deviance residual is close to zero, this means that our model is not biased in one direction.
+* Intercept = 6.287, the intercept of the formed line by glm is 6.287. P-value of the Intercept is close to 0. Hence the Intercept value is significant. 
+* Coeff of Slope of GDP = 0.00849. P-value is close to 0. Hence the slope value is significant.
+* Coeff of Slope of Population = -0.0000000071. P-value=0.208, The coeff. is not significant.
+* Null deviance = 26661, refers to intercept-only model.
+* Residual deviance = 54666, refers to the trained model. Lesser deviance means better model. 
+* AIC = 517.89, penalizes the number of parameters. Smaller AIC results in better predictions.
+
+```{r eval=TRUE}
+mdl2016 = glm(df2016$Medal2016~df2016$Population+df2016$GDP, data=df2016)
+summary(mdl2016)
+predicted2016 <- predict(mdl2016, newdata = df2016, se.fit=TRUE)
+cor(predicted2016$fit, df2016$Medal2016) # 0.891
+```
+
+***
+
+#### **Sub question 1.2** How consistent are the effects of population & GDP over time?
+
+
+**Solution:**
+
+We consider Model built in task 1 for comparing the effect of population & GDP for model 2008 and 2016. We shall use Residual deviance and AIC metrics of the 2 models to compare.
+
+Model2008 as Residual deviance as 9053 and AIC as 553.
+Model2016 as Residual deviance as 5466 and AIC as 517.
+
+If we compare the above 2 models using Residual deviance and AIC, it can be seen that both metrics are high for Model2008 and lesser in Model2016. Both the metrics should be close to zero to form a good fit model. In our case, Model2016 has lesser Residual deviance and AIC than Model2008. 
+
+In both models, population coefficient is not significant. In Mdl2016, the population slop is negative -0.000000007135 and in 2008 model the population slope is positive. GDP coefficient is positive and significant in both models.
+
+**Conclusion ** The GDP and Population data that is used to train the model determines the predictions of medal count in 2016 better than the predication of medal count in 2008.
+
+***
+
+#### **Sub question 1.3** 	Using the regression for 2008 medal count, make prediction for results of 2012.
+
+
+**Solution:**
+
+We shall experiment with 2 scenarios by providing different input for prediction.
+
+* **Scenario 1:** First, we use provided GDP & Population for prediction and compare the results with actual and predicted of 2012. 
+
+There is a correlation of 0.82 between actual and predicted value which means, the predicted medal count is close to actual medal count.
+
+```{r eval=TRUE}
+df2012_topredict <-df[,c( "Population","GDP")]
+predicted2012 <- predict(mdl2008, newdata = df2012_topredict, se.fit=TRUE)
+cor(predicted2012$fit, df2012$Medal2012) # 0.826
+```
+* **Scenario 2:** Second approach, we scale the Population by 1.01% as per the source (https://www.worldometers.info/world-population/). We assume the provided GDP and Population is for year 2008. Now to predict the Medal count for 2012, we keep the GDP constant(again for simplicity,we dont want to hike the GDP by a percentage because GDP may increase or decrease based on the economy of the country) and for simplicity of calculation purpose, we shall assume in 4 years population growth is 4% more than the population in 2008. So, we determine the new popualtion by incrementing the population by 4%.
+
+We use the new scaled population and the provided GDP to predict 2012 medal count using Model2008.
+
+We see that the correlation between actual and predicted is till 0.826. This is because the coefficient of population is very small (almost close to 0, also p-value says the coefficient is insignificant), we do not see any change in the prediction by scaling the population. I experimented with scaling the population to 50% higher and still the prediction remained the same. This means that the population has negligible influence in the medal count prediction. This agrees with out P-value for coefficient which says population coefficient is not significant.
+
+```{r eval=TRUE}
+df2012_topredictscaled <-df[,c( "Population","GDP")]
+df2012_topredictscaled["Population"] = ((df2012_topredictscaled["Population"] * 1.01) /100)*4 + df2012_topredictscaled["Population"] 
+
+predicted2012_scaled <- predict(mdl2008, newdata = df2012_topredictscaled, se.fit=TRUE)
+cor(predicted2012_scaled$fit, df$Medal2012)
+```
+
+***
+
+#### **Sub question 1.4** Plot your predictions vs actual for the results of 2012. If results are hard to see, use transformation. Comment on your findings. How good are your predictions? Which countries are outliers from the trend?
+
+
+**Solution:**
+
+__Predicted 2012 vs Actual 2012 - Without log transformation__
+
+When the Predicted 2012 vs Actual 2012 values were plotted without axis transformation, the plot is not clear to interpret.
+
+```{r eval=TRUE}
+#opts_chunk$set(fig.width = 8, fig.height = 6)
+pred2012 = predicted2012$fit
+actual2012 = df$Medal2012
+ggplot(mdl2008$model, aes_string(x =pred2012 , y = actual2012)) + 
+  geom_point() +
+  stat_smooth(method = "glm", col = "red") +
+  labs(title = "2012 Predicted vs Actual using 2008 model") +
+  xlab("Predicted 2012") + ylab("Actual 2012") +
+  geom_point(color='darkblue')
+```
+
+```{r eval=TRUE}
+cor(pred2012,actual2012) #0.82
+```
+
+__With predicted transformation - Predicted 2012 vs Actual 2012__
+
+As the plot on actual vs predicted 2012 was not clear to interpret earlier, the predicted values ie y-axis were transformed by applying log. Now, it can be seen that there is a visible linear between actual vs predicted 2012 medal count.
+
+__Interpretation of log transformed plot__
+
+We see that there is a positive correlation of 0.82 between actual and predicted medal count of 2012. 
+We see that the countries "USA", "China", "Japan" are predicted to have the highest top 3 medal count. Where as actual top 3 medal count is held by countries "USA", "China" and "Russia". There is a huge differene in medal count prediction for Russia with predicted as 20 vs actual which is 81. 
+
+We can consider USA and China as **outliers** in the prediction, but if we compare with the actual medal count, USA and China still stand out with very huge difference in medal count than other countries.
+
+Below is the plot that shows log transformed predicted vs actual 2012 medal count (without county label)
+
+```{r eval=TRUE}
+pred2012_log = log(predicted2012$fit)
+actual2012 = log(df$Medal2012)
+ggplot(mdl2008$model, aes_string(x = pred2012_log, y =  actual2012)) + 
+  geom_point() +
+  stat_smooth(method = "glm", col = "red") +
+  labs(title = "Log transformed - 2012 Predicted vs Actual using 2008 model")+
+  xlab("Predicted 2012") + ylab("Actual 2012") +
+  geom_point(color='darkblue')
+```
+Below is the plot that shows log transformed predicted vs actual 2012 medal count (with county label)
+
+```{r eval=TRUE}
+ggplot(mdl2008$model, aes_string(x = pred2012_log, y =  actual2012)) + 
+  geom_point() +
+  stat_smooth(method = "glm", col = "red") +
+  labs(title = "Log transformed - 2012 Predicted vs Actual using 2008 model")+
+  xlab("Predicted 2012") + ylab("Actual 2012") +
+  geom_point(color='darkblue') + geom_text(aes(label=df$Country),hjust=0, vjust=0)
+```
+
+Top 5 countries with highest predicted medal count
+
+```{r eval=TRUE}
+df2012$predicted = pred2012
+# Show top 5 predicted medal counts 
+df2012orderedpred = df2012[order(-df2012$predicted),][1:5,]
+df2012orderedpred
+```
+
+Top 5 countries with highest actual medal count
+
+```{r eval=TRUE}
+# Show top 5 actual medal counts 
+df2012orderedactual = df2012[order(-df2012$Medal2012),][1:5,]
+df2012orderedactual
+```
+
+***
+
+#### **Sub question 1.5**	Using the regression for 2016 medal count, make prediction for the unknown results of 2021 Olympics.
+
+
+**Solution:**
+
+Using model mdl2016 which is built using 2016 medal count, we predict the medal count for countries in year 2021 with the provided GDP and Population for 2021. Below are the results.
+Top 5 countries with highest predicted medal count for 2021 is shown.
+
+```{r eval=TRUE}
+predicted2021 <- predict(mdl2016, newdata = df2021, se.fit=TRUE)
+#predicted2021$fit
+df2021$predicted = predicted2021$fit
+# Show top 3 predicted medal counts 
+df2021ordered = df2021[order(-df2021$predicted),][1:5,]
+df2021ordered
+```
+
+***
+
+### Question 2 - Model Selection
+
+#### **Sub question 2.1**	Fit linear models for total medal count in 2008 using (i) Population (ii) GDP (iii) Both. Perform model selection using Akaike Information Criterion & comment on your results.
+
+
+**Solution:**
+
+__Interpretation of 3 model results:__
+3 modes are fit each with different features - GDP only, Population only & both.Model with lowest AIC is considered to be a best model. In our case, Model1 & Model3 have almost equal AIC and residual deviance. GDP explains most of the model prediction and population contributing less. So, to keep the model architecture simple, we can consider Model1 with GDP only that has least AIC value as the best model for predicting the result of 2008.
+
+* AIC for Model1 -GDP only = 553.13
+
+* AIC for Model2 - Population only = 618.92
+
+* AIC for Model3 - GDP & Population = 553.72
+
+
+(i) Model using GDP only
+```{r eval=TRUE}
+# model using GDP only
+mdl2008gdp = glm(Medal2008~GDP, data=df2008)
+summary(mdl2008gdp) #AIC = 553.13, Residual deviance = 9235.6 
+```
+(ii) Model using Population only
+
+```{r eval=TRUE}
+# model using Population only
+mdl2008pop = glm(Medal2008~Population, data=df2008)
+summary(mdl2008pop) #AIC = 618.92, Residual deviance = 23328
+```
+
+(iii) Model using GDP & Population
+
+```{r eval=TRUE}
+# model using both Population and GDP
+mdl2008both = glm(Medal2008~Population+GDP, data=df2008)
+summary(mdl2008both) # AIC = 553.72, Residual deviance = 9053.9
+```
+
+***
+
+#### **Sub question 2.2**	Use Cross validation to perform model selection between (i) Population (ii) GDP (iii) Both. Comment on your results. Do the results agree with model selected by AIC?
+
+
+**Solution:**
+
+Cross validation is an approach to avoid over fitting and to test how well our model performs on unseen data ie how well our model generalises to unseen dataset. In cross validation, we divide the dataset into 3 parts(sometimes 2 based on the complexity of the problem) called train data, test data and validation data. We use train data for building the model, validation data to finetune the model parameters and finally test data to do the final model evaluation.
+
+To find the feature combination that best fits our model, we run the cross validation on every possible feature combination and check which combination performs better in multiple iterations.
+
+In below example, we divide our dataset for 2008 medal count into train and test dataset with a split ratio of 0.7:0.3 (train : test). Then we perform model fit and find the predictive log likelihood of each feature combination. We repeat this over 100 times and check which feature combination provides the highest predicitve log likelihood. In our case, after 100 repetitions, we see that model1 (with the feature of GDP only) has highest predictive probability maximum number of times.If we execute the iteration multiple times, each time model1 gets the highest predictive likelihood. 
+
+**Conclusion:** We can say that Model1 is the best model as selected by cross validation approach. This conclusion agrees with task 2.1 where we choose Model1 as best model based on lowest AIC score.
+ 
+```{r eval=TRUE}
+
+winner = rep(NA, 1)
+for (iteration in 1:100){
+  
+index = createDataPartition(df2008$Medal2008, p = 0.70, list = FALSE)
+train_data = df2008[index, ]
+test_data = df2008[-index, ]
+
+#List of possible models 
+formulas = c("Medal2008 ~ GDP", "Medal2008 ~ Population", "Medal2008 ~ GDP+Population")
+predictive_log_likelihood = rep(NA, length(formulas))
+
+for (i in 1:length(formulas)){
+  #Fit a linear regression model with the training data
+  current_model = glm(formula = formulas[i], data = train_data)
+  #Extract the 'dispersion parameter' from the model which is an unbiased estimate for the residual 
+  sigma = sqrt(summary(current_model)$dispersion)
+  #Now use this model to evaulate the probability of the test outputs
+  #Get the predicted mean for each new data point
+  ypredict_mean = predict(current_model, test_data)
+  #Now calculate the predictive log probability by summing the
+  #log probability of each output value in the test data
+  predictive_log_likelihood[i] = sum(dnorm(test_data$Medal2008, ypredict_mean, sigma, log=TRUE))
+}
+#Find the winning model for this iteration
+winner[iteration] = which.max(predictive_log_likelihood)
+}
+
+#Plot a histogram of how often each model wins
+wdf <- data.frame("Models" = winner)
+  wdf %>% ggplot(aes(Models)) +
+  geom_histogram(binwidth=1,col="black", fill="blue" ,alpha = .2) +
+  stat_bin(binwidth=1, geom='text', color='black', aes(label=..count..),
+  position=position_stack(vjust = 0.5) )
+  
+```
+
+***
+
+#### **Sub question 2.3** 	Using the 3 fitted models from Model selection task1, predict the results of Rio 2012. Which model predicts best? Justify your reasoning. Compare the results with earlier results on model performance.
+
+
+**Solution:**
+
+__Interpretation of prediction result:__
+
+We predicted the 2012 medal counts using the 3 models different created in 2.1 task. The results of prediction are documented below.
+
+* Model1 - GDP only - model has a correlation between actual and predicted medal count as 0.8253. The plot of actual vs predicted shows that most of the predictions are close to actual count.
+
+* Model2 - Population only - model has a correlation between actual and predicted medal count as 0.43 which is very low. The plot of actual vs predicted shows that most of the predictions are concentrated around value 9 which is our intercept of model2. This means population has no influene on prediction at all.
+
+* Model3 - Population & GDP - model has a correlation between actual and predicted medal count as 0.8263 which is same as Model1. The plot of actual vs predicted shows that most of the predictions are close to actual count.
+
+**Conclusion:** As both model1 & model3 prediction are similar, we can choose the model with less features to reudce complexity. Hence, Model1 which is GDP only feature can be considered as the best fit model with better prediction. This agrees with the 2.1 task where we choose Model1 as best model in terms of AIC metric. 
+
+**Output of prediction from each model:** 
+
+* Model1 GDP only - Below, we predict the results for 2012 Rio using GDP only model
+```{r eval=TRUE}
+#Predict 2012 using gdp only
+predicted2012_gdp <- predict(mdl2008gdp, newdata = df2012, se.fit=TRUE, dispersion=TRUE)
+cor(predicted2012_gdp$fit,df2012$Medal2012) #0.825
+```
+Plot the actual vs pred for GDP only predictions
+
+```{r eval=TRUE}
+Country <- df2012$Country 
+actual <- df2012$Medal2012 
+pred <- predicted2012_gdp$fit 
+nyx <- data.frame(Country, actual, pred)
+# reshape your data into long format
+nyxlong <- melt(nyx, id=c("Country"))
+ggplot(nyxlong, aes(x = Country, y = value, color=variable)) +
+  geom_point() +
+  scale_x_discrete(guide = guide_axis(angle = 90))+
+  labs(title = "2012 - Actual vs Pred - GDP only") + theme(text = element_text(size=9))
+
+```
+
+
+* Model2 Population only - Below, we predict the results for 2012 Rio using Population only model
+
+```{r eval=TRUE}
+predicted2012_pop <- predict(mdl2008pop, newdata = df2012, se.fit=TRUE)
+cor(predicted2012_pop$fit,df2012$Medal2012) #0.433
+```
+
+Plot the actual vs pred for Population only predictions
+
+```{r eval=TRUE}
+Country <- df2012$Country 
+actual <- df2012$Medal2012 
+pred <- predicted2012_pop$fit 
+nyx <- data.frame(Country, actual, pred)
+# reshape your data into long format
+nyxlong <- melt(nyx, id=c("Country"))
+ggplot(nyxlong, aes(x = Country, 
+                    y = value, 
+                    color=variable)) +
+  geom_point() +
+  scale_x_discrete(guide = guide_axis(angle = 90))+
+  labs(title = "2012 - Actual vs Pred - Population only")+ theme(text = element_text(size=9))
+```
+
+
+* Model3 Population & GDP - Below, we predict the results for 2012 Rio using Population & GDP model
+
+```{r eval=TRUE}
+predicted2012_both <- predict(mdl2008both, newdata = df2012, se.fit=TRUE)
+cor(predicted2012_both$fit,df2012$Medal2012) #0.826
+
+```
+
+Plot the actual vs pred for Population & GDP predictions
+
+```{r eval=TRUE}
+Country <- df2012$Country 
+actual <- df2012$Medal2012 
+pred <- predicted2012_both$fit 
+nyx <- data.frame(Country, actual, pred)
+# reshape your data into long format
+nyxlong <- melt(nyx, id=c("Country"))
+ggplot(nyxlong, aes(x = Country, 
+                    y = value, 
+                    color=variable)) +
+  geom_point() +
+  scale_x_discrete(guide = guide_axis(angle = 90))+
+  labs(title = "2012 - Actual vs Pred - Population & GDP")+ theme(text = element_text(size=9))
+
+```
+
+***
+
+
+
+
+
+
+

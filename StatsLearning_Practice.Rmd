@@ -1,0 +1,37 @@
+---
+title: "R Code practice"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+**Question 1**
+Generate 30 equally spaced values of x between 0 and 5 using the seq command. For each x
+value, calculate a y value obeying y = exp(x). Plot x against y using the plot command
+
+```{r}
+x = seq(from=0, to=5, length.out = 30)
+y = exp(x)
+plot(x, y, xlab='x', ylab='y')
+```
+
+**Question 2**
+Generate 10000 uniformly distributed random numbers between 0 and 100 using the runif
+command. Plot a histogram of these numbers with 80 bins using the hist command
+```{r}
+z = runif(n=10000, min = 0, max = 100)
+hist(z, breaks = 80)
+```
+
+**Question 3**
+Using a mean of 5 and a standard deviation of 1, generate 100 Normally-distributed numbers
+using the rnorm command. Find the sample mean and standard deviation of this generated
+sample using the mean and sd commands.
+
+```{r}
+w = rnorm(n=100, mean=5, sd=1)
+m = mean(w)
+s = sd(w)
+print(m)
+print(s)
+```
